@@ -10,5 +10,9 @@
     }
     var sclient = window.sclient;
 
+    var con = new sclient.Connector("http://eris.generation-p.com/test/get-shapes.do", function(data) {
+        console.log(con.timingCache);
+    }).start();
+
 
 }());

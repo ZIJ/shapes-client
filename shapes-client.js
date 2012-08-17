@@ -1,4 +1,35 @@
 /**
+ * Created by Igor Zalutsky on 17.08.12 at 12:48
+ */
+
+(function () {
+    "use strict";
+    // publishing namespace
+    if (!window.sclient) {
+        window.sclient = {};
+    }
+    var sclient = window.sclient;
+
+    /**
+     * Extends a constructor with BaseConstructor's prototype
+     * @param BaseConstructor
+     */
+    Function.prototype.inheritFrom = function(BaseConstructor){
+        var sampleInstance = new BaseConstructor();
+        this.prototype = sampleInstance;
+    };
+    /**
+     * Throw an error with custom message
+     * @param errorMessage Optional, "Something went wrong" by default
+     */
+    sclient.report = function(errorMessage) {
+        throw new Error(errorMessage ? errorMessage : "Something went wrong");
+    };
+
+
+}());
+
+/**
  * Created by Igor Zalutsky on 17.08.12 at 12:01
  */
 
@@ -62,67 +93,6 @@
             }
         }
     };
-}());
-/**
- * Created Created by Igor Zalutsky on 17.08.12 at 12:03
- */
-
-(function() {
-    "use strict";
-    // publishing namespace
-    if (!window.sclient) {
-        window.sclient = {};
-    }
-    var sclient = window.sclient;
-
-    /**
-     * Property that notifies listeners when it's value changes through set()
-     * @param initialValue
-     * @constructor
-     */
-    sclient.ObservableProperty = function(initialValue) {
-        this.value = initialValue;
-        this.listeners = {};
-    };
-
-    // Extending EventEmitter
-    sclient.ObservableProperty.inheritFrom(sclient.EventEmitter);
-
-    /**
-     * Returns property value
-     * @return {*}
-     */
-    sclient.ObservableProperty.prototype.get = function(){
-        return this.value;
-    };
-    /**
-     * Sets property value, notifies listeners
-     * @param newValue
-     */
-    sclient.ObservableProperty.prototype.set = function(newValue){
-        if (this.value !== newValue) {
-            this.value = newValue;
-            this.emit("change");
-        }
-    };
-
-    /**
-     * Shorcut for on("change", listener)
-     * @param listenerFunc
-     */
-    sclient.ObservableProperty.prototype.notify = function(listenerFunc) {
-        this.on("change", listenerFunc);
-    };
-
-    /**
-     * Shorcut for off("change", listener)
-     * @param listenerFunc
-     */
-    sclient.ObservableProperty.prototype.ignore = function(listenerFunc) {
-        this.off("change", listenerFunc);
-    };
-
-
 }());
 /**
  * Created by Igor Zalutsky on 17.08.12 at 12:07
@@ -261,6 +231,142 @@
 }());
 
 /**
+ * Created Created by Igor Zalutsky on 17.08.12 at 12:03
+ */
+
+(function() {
+    "use strict";
+    // publishing namespace
+    if (!window.sclient) {
+        window.sclient = {};
+    }
+    var sclient = window.sclient;
+
+    /**
+     * Property that notifies listeners when it's value changes through set()
+     * @param initialValue
+     * @constructor
+     */
+    sclient.ObservableProperty = function(initialValue) {
+        this.value = initialValue;
+        this.listeners = {};
+    };
+
+    // Extending EventEmitter
+    sclient.ObservableProperty.inheritFrom(sclient.EventEmitter);
+
+    /**
+     * Returns property value
+     * @return {*}
+     */
+    sclient.ObservableProperty.prototype.get = function(){
+        return this.value;
+    };
+    /**
+     * Sets property value, notifies listeners
+     * @param newValue
+     */
+    sclient.ObservableProperty.prototype.set = function(newValue){
+        if (this.value !== newValue) {
+            this.value = newValue;
+            this.emit("change");
+        }
+    };
+
+    /**
+     * Shorcut for on("change", listener)
+     * @param listenerFunc
+     */
+    sclient.ObservableProperty.prototype.notify = function(listenerFunc) {
+        this.on("change", listenerFunc);
+    };
+
+    /**
+     * Shorcut for off("change", listener)
+     * @param listenerFunc
+     */
+    sclient.ObservableProperty.prototype.ignore = function(listenerFunc) {
+        this.off("change", listenerFunc);
+    };
+
+
+}());
+/**
+ * Created by Igor Zalutsky on 17.08.12 at 12:32
+ */
+
+(function () {
+    "use strict";
+    // publishing namespace
+    if (!window.sclient) {
+        window.sclient = {};
+    }
+    var sclient = window.sclient;
+
+    sclient.Connector = function(url, callback) {
+        //TODO params validation in Connector
+        this.url = url;
+        this.callback = callback;
+        this.minTiming = 10;
+        this.maxTiming = 1000;
+        this.timing = 0;
+        this.cacheSize = 10;
+        this.timingCache = [];
+        this.isStarted = false;
+
+    };
+
+    sclient.Connector.prototype.start = function(){
+        if (!this.isStarted) {
+            this.isStarted = true;
+            this.runLoop();
+        }
+        return this;
+    };
+
+    sclient.Connector.prototype.stop = function(){
+        this.isStarted = false;
+        return this;
+    };
+
+    sclient.Connector.prototype.runLoop = function(){
+        var that = this;
+        this.request();
+        var timingSum = 0;
+        this.timingCache.forEach(function(value){
+            timingSum += value;
+        });
+        var averageTiming = timingSum > 0 ? timingSum / this.timingCache.length : 0;    //fixing division by zero
+        var nextTiming = Math.min(Math.max(this.minTiming, averageTiming), this.maxTiming);
+        if (this.isStarted) {
+            setTimeout(function(){
+                that.runLoop();
+            }, nextTiming);
+        }
+    };
+
+    sclient.Connector.prototype.request = function(){
+        var that = this;
+        var start = new Date();
+        $.ajax(this.url, {
+            crossDomain: true,
+            dataType: "jsonp"
+        }).done(function(data){
+                var end = new Date();
+                var timing = end - start;
+                that.timingCache.push(timing);
+                if (that.timingCache.length > that.cacheSize) {
+                    that.timingCache.shift();
+                }
+                that.callback(data);
+            }).fail(function(err){
+                throw new Error("Request failed");
+            });
+    };
+
+}());
+
+/**
  * Created by Igor Zalutsky on 17.08.12 at 12:07
  */
 
@@ -271,6 +377,10 @@
         window.sclient = {};
     }
     var sclient = window.sclient;
+
+    var con = new sclient.Connector("http://eris.generation-p.com/test/get-shapes.do", function(data) {
+        console.log(con.timingCache);
+    }).start();
 
 
 }());

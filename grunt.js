@@ -19,6 +19,8 @@ module.exports = function(grunt) {
             options: {
                 strict: true,           // strict mode
                 browser: true,          // browser environment
+                devel: true,            // console, alert, etc
+                jquery: true,           // jQuery
                 bitwise: true,          // no bitwise operators
                 camelcase: true,        // only camelCase and UNDER_SCORE
                 curly: true,            // no "braceless" loops
@@ -41,8 +43,8 @@ module.exports = function(grunt) {
         },
         concat: {
             app: {
-                src: ['src/utils/*.js',
-                      'src/core/eventEmitter.js', 'src/core/observableProperty.js', 'src/core/observableCollection.js',
+                src: ['src/util/*.js',
+                      'src/core/ioc/*.js', 'src/core/*.js',
                       'src/model/*.js', 'src/view/*.js', 'src/app.js'],
                 dest: 'shapes-client.js'
             },
