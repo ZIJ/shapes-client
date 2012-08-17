@@ -43,6 +43,7 @@
         return (this.items.indexOf(item) >= 0);
     };
 
+
     /**
      * Returns amount of items
      * @return {Number}
@@ -113,6 +114,22 @@
         for (var i = 0; i < this.items.length; i+=1) {
             func(this.items[i]);
         }
+    };
+
+    /**
+     * Checks if it contains item for which predicate() is true
+     * @param predicate Function returning Boolean
+     * @return {Boolean}
+     */
+    sclient.ObservableCollection.prototype.any = function(predicate){
+        //TODO param validation in ObservableCollection.any()
+        var result = false;
+        this.each(function(item){
+            if (predicate(item)) {
+                result = true;
+            }
+        });
+        return result;
     };
 
     //TODO Refactor notify() and ignore() shortcuts in Observables

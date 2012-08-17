@@ -80,6 +80,22 @@
         ok(sum === 6);
     });
 
+    test("ObservableCollection.any", function(){
+        expect(2);
+        var coll = new sclient.ObservableCollection();
+        coll.add(1);
+        coll.add(2);
+        coll.add(3);
+        var yep = coll.any(function(item){
+            return item === 2;
+        });
+        ok (yep === true);
+        var nope = coll.any(function(item){
+            return item === 5;
+        });
+        ok (nope === false);
+    });
+
 }());
 
 
