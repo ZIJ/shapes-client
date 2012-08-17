@@ -28,10 +28,10 @@
         }
         for (var name in properties){
             if (properties.hasOwnProperty(name)) {
-                if (!(this[name] instanceof sclient.ObservableProperty)) {
-                    sclient.report("No such ObservableProperty: " + name);
+                if (this[name] instanceof sclient.ObservableProperty) {
+                    this[name].set(properties[name]);
                 }
-                this[name].set(properties[name]);
+
             }
         }
     };

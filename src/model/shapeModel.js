@@ -12,6 +12,7 @@
 
     sclient.ShapeModel = function(id, properties){
         this.id = this.newId(id);
+        this.userId = this.newProp(sclient.userId);
         this.x = this.newProp(0);
         this.y = this.newProp(0);
         this.size = this.newProp(100);

@@ -26,5 +26,16 @@
         throw new Error(errorMessage ? errorMessage : "Something went wrong");
     };
 
+    /**
+     * returns a "by id" predicate
+     * @param id
+     * @return {Function}
+     */
+    sclient.byId = function(id) {
+        return function(item) {
+            return item.id === id;
+        };
+    };
+
 
 }());

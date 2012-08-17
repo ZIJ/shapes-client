@@ -26,6 +26,17 @@
         throw new Error(errorMessage ? errorMessage : "Something went wrong");
     };
 
+    /**
+     * returns a "by id" predicate
+     * @param id
+     * @return {Function}
+     */
+    sclient.byId = function(id) {
+        return function(item) {
+            return item.id === id;
+        };
+    };
+
 
 }());
 
@@ -231,6 +242,9 @@
     sclient.ObservableCollection.prototype.by = function(predicate){
         //TODO param validation in ObservableCollection.by()
         for (var i = 0; i < this.items.length; i+=1) {
+            if (typeof predicate !== "function") {
+                sclient.report("Predicate should be function");
+            }
             if (predicate(this.items[i])){
                 return this.items[i];
             }
@@ -348,10 +362,10 @@
         }
         for (var name in properties){
             if (properties.hasOwnProperty(name)) {
-                if (!(this[name] instanceof sclient.ObservableProperty)) {
-                    sclient.report("No such ObservableProperty: " + name);
+                if (this[name] instanceof sclient.ObservableProperty) {
+                    this[name].set(properties[name]);
                 }
-                this[name].set(properties[name]);
+
             }
         }
     };
@@ -492,36 +506,30 @@
      * @constructor
      */
     sclient.UpdateInfo = function(descriptors, models){
-        this.created = {};  // descriptors of new models
-        this.changed = {};  // map of changed properties
-        this.deleted = {};  // set of deleted ids
+        this.created = [];  // new models
+        this.changed = [];  // changed properties
+        this.deleted = [];  // deleted ids
 
         var info = this;
         var ids = {};       // set of available ids
 
-        function byId(id) {             //makes predicate by id
-            return function(item) {
-                return item.id === id;
-            };
-        }
-
         descriptors.forEach(function(descriptor){
             var id = descriptor.id;
             ids[id] = id;
-            var model = models.by(byId(id));
+            var model = models.by(sclient.byId(id));
             if (model) {
                 var diff = info.difference(descriptor, model);
                 if (diff) {
-                    info.changed[id] = diff;
+                    info.changed.push(diff);
                 }
             } else {
-                info.created[id] = descriptor;
+                info.created.push(descriptor);
             }
         });
 
         models.each(function(model){
             if (ids[model.id] === undefined){
-                info.deleted[model.id] = model.id;
+                info.deleted.push(model.id);
             }
         });
 
@@ -534,7 +542,7 @@
      * @return {Object}
      */
     sclient.UpdateInfo.prototype.difference = function(descriptor, model) {
-        var diff = {};
+        var diff = {id: descriptor.id};
         var changed = false;
         for (var propName in descriptor) {
             if (descriptor.hasOwnProperty(propName) &&
@@ -565,6 +573,7 @@
 
     sclient.ShapeModel = function(id, properties){
         this.id = this.newId(id);
+        this.userId = this.newProp(sclient.userId);
         this.x = this.newProp(0);
         this.y = this.newProp(0);
         this.size = this.newProp(100);
@@ -593,15 +602,41 @@
     var sclient = window.sclient;
 
     sclient.userId = "Igor Zalutsky";
+    sclient.url = "http://eris.generation-p.com/test/get-shapes.do";
 
-    var models = new sclient.ObservableCollection();
-    models.add(new sclient.ShapeModel(8, {size:200, x:3}));
-    models.add(new sclient.ShapeModel(11));
+    sclient.models = new sclient.ObservableCollection();
 
-    var con = new sclient.Connector("http://eris.generation-p.com/test/get-shapes.do", function(data) {
-        var info = new sclient.UpdateInfo(data, models);
+    sclient.update = function(data){
+
+        var info = new sclient.UpdateInfo(data, sclient.models);
         console.log(info);
-    }).start();
+
+        info.created.forEach(function(descriptor){
+            var id = descriptor.id;
+            var model = new sclient.ShapeModel(id, descriptor);
+            sclient.models.add(model);
+        });
+
+        info.deleted.forEach(function(id) {
+            var predicate = sclient.byId(id);
+            var model = sclient.models.by(predicate);
+            if (model) {
+                sclient.models.remove(model);
+            }
+        });
+
+        info.changed.forEach(function(descriptor){
+            var id = descriptor.id;
+            var predicate = sclient.byId(id);
+            var model = sclient.models.by(predicate);
+            model.assign(descriptor);
+        });
+    };
+
+    sclient.models.add(new sclient.ShapeModel(8, {size:200, x:3}));
+    sclient.models.add(new sclient.ShapeModel(11));
+
+    var con = new sclient.Connector(sclient.url, sclient.update).start();
 
     setTimeout(function(){
         con.stop();

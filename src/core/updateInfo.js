@@ -15,36 +15,30 @@
      * @constructor
      */
     sclient.UpdateInfo = function(descriptors, models){
-        this.created = {};  // descriptors of new models
-        this.changed = {};  // map of changed properties
-        this.deleted = {};  // set of deleted ids
+        this.created = [];  // new models
+        this.changed = [];  // changed properties
+        this.deleted = [];  // deleted ids
 
         var info = this;
         var ids = {};       // set of available ids
 
-        function byId(id) {             //makes predicate by id
-            return function(item) {
-                return item.id === id;
-            };
-        }
-
         descriptors.forEach(function(descriptor){
             var id = descriptor.id;
             ids[id] = id;
-            var model = models.by(byId(id));
+            var model = models.by(sclient.byId(id));
             if (model) {
                 var diff = info.difference(descriptor, model);
                 if (diff) {
-                    info.changed[id] = diff;
+                    info.changed.push(diff);
                 }
             } else {
-                info.created[id] = descriptor;
+                info.created.push(descriptor);
             }
         });
 
         models.each(function(model){
             if (ids[model.id] === undefined){
-                info.deleted[model.id] = model.id;
+                info.deleted.push(model.id);
             }
         });
 
@@ -57,7 +51,7 @@
      * @return {Object}
      */
     sclient.UpdateInfo.prototype.difference = function(descriptor, model) {
-        var diff = {};
+        var diff = {id: descriptor.id};
         var changed = false;
         for (var propName in descriptor) {
             if (descriptor.hasOwnProperty(propName) &&

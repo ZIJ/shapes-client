@@ -135,6 +135,9 @@
     sclient.ObservableCollection.prototype.by = function(predicate){
         //TODO param validation in ObservableCollection.by()
         for (var i = 0; i < this.items.length; i+=1) {
+            if (typeof predicate !== "function") {
+                sclient.report("Predicate should be function");
+            }
             if (predicate(this.items[i])){
                 return this.items[i];
             }
