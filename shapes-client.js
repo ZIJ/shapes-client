@@ -219,13 +219,23 @@
      */
     sclient.ObservableCollection.prototype.any = function(predicate){
         //TODO param validation in ObservableCollection.any()
-        var result = false;
-        this.each(function(item){
-            if (predicate(item)) {
-                result = true;
+        var contains = this.by(predicate);
+        return contains ? true : false;
+    };
+
+    /**
+     * Checks if it contains item for which predicate() is true
+     * @param predicate Function returning Boolean
+     * @return {*}
+     */
+    sclient.ObservableCollection.prototype.by = function(predicate){
+        //TODO param validation in ObservableCollection.by()
+        for (var i = 0; i < this.items.length; i+=1) {
+            if (predicate(this.items[i])){
+                return this.items[i];
             }
-        });
-        return result;
+        }
+        return null;
     };
 
     //TODO Refactor notify() and ignore() shortcuts in Observables
