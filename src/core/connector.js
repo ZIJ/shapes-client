@@ -16,7 +16,6 @@
         this.callback = callback;
         this.minTiming = 10;
         this.maxTiming = 1000;
-        this.timing = 0;
         this.cacheSize = 10;
         this.timingCache = [];
         this.isStarted = false;
