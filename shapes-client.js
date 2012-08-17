@@ -319,6 +319,69 @@
 
 }());
 /**
+ * Created by Igor Zalutsky on 17.08.12 at 13:05
+ */
+
+(function () {
+    "use strict";
+    // publishing namespace
+    if (!window.sclient) {
+        window.sclient = {};
+    }
+    var sclient = window.sclient;
+
+    /**
+     * Base classs for entity model
+     * @param properties Object with initial property values (id required) or id
+     * @constructor
+     */
+    sclient.BaseModel = function(id, properties) {
+        //this.id = 0;
+    };
+    /**
+     * Checks ObservableProperties presence and sets their values
+     * @param properties
+     */
+    sclient.BaseModel.prototype.assign = function(properties) {
+        if (typeof properties !== "object") {
+            sclient.report("Properties should be object");
+        }
+        for (var name in properties){
+            if (properties.hasOwnProperty(name)) {
+                if (!(this[name] instanceof sclient.ObservableProperty)) {
+                    sclient.report("No such ObservableProperty: " + name);
+                }
+                this[name].set(properties[name]);
+            }
+        }
+    };
+    /**
+     * Checks given ID validity and returns it
+     * @param id
+     * @return {*}
+     */
+    sclient.BaseModel.prototype.newId = function(id) {
+        if (typeof id !== "number") {
+            sclient.report("ID should be number");
+        } else if (id < 0) {
+            sclient.report("ID should be positive");
+        } else if (id !== Math.floor(id)) {
+            sclient.report("ID should be integer");
+        }
+        return id;
+    };
+    /**
+     * Creates ObservableProperty with given initial value
+     * @param initialValue
+     * @return {sclient.ObservableProperty}
+     */
+    sclient.BaseModel.prototype.newProp = function(initialValue){
+        return new sclient.ObservableProperty(initialValue);
+    };
+
+}());
+
+/**
  * Created by Igor Zalutsky on 17.08.12 at 12:32
  */
 
@@ -330,6 +393,12 @@
     }
     var sclient = window.sclient;
 
+    /**
+     * Regularly sends requests to given url, auto-optimizes to network perfomance
+     * @param url
+     * @param callback  will be called with response data as first param
+     * @constructor
+     */
     sclient.Connector = function(url, callback) {
         //TODO params validation in Connector
         this.url = url;
@@ -342,6 +411,10 @@
 
     };
 
+    /**
+     * Starts request loop
+     * @return {*}
+     */
     sclient.Connector.prototype.start = function(){
         if (!this.isStarted) {
             this.isStarted = true;
@@ -350,11 +423,18 @@
         return this;
     };
 
+    /**
+     * Stops request loop
+     * @return {*}
+     */
     sclient.Connector.prototype.stop = function(){
         this.isStarted = false;
         return this;
     };
 
+    /**
+     * Makes a request, then calculates delay until next step.
+     */
     sclient.Connector.prototype.runLoop = function(){
         var that = this;
         this.request();
@@ -371,6 +451,9 @@
         }
     };
 
+    /**
+     * Sends request
+     */
     sclient.Connector.prototype.request = function(){
         var that = this;
         var start = new Date();
@@ -393,6 +476,111 @@
 }());
 
 /**
+ * Created by Igor Zalutsky on 17.08.12 at 14:27
+ */
+
+(function () {
+    "use strict";
+    // publishing namespace
+    if (!window.sclient) {
+        window.sclient = {};
+    }
+    var sclient = window.sclient;
+
+    /**
+     * Describes difference between array of Shape descriptors and ObservableCollection of ShapeModels
+     * @constructor
+     */
+    sclient.UpdateInfo = function(descriptors, models){
+        this.created = {};  // descriptors of new models
+        this.changed = {};  // map of changed properties
+        this.deleted = {};  // set of deleted ids
+
+        var info = this;
+        var ids = {};       // set of available ids
+
+        function byId(id) {             //makes predicate by id
+            return function(item) {
+                return item.id === id;
+            };
+        }
+
+        descriptors.forEach(function(descriptor){
+            var id = descriptor.id;
+            ids[id] = id;
+            var model = models.by(byId(id));
+            if (model) {
+                var diff = info.difference(descriptor, model);
+                if (diff) {
+                    info.changed[id] = diff;
+                }
+            } else {
+                info.created[id] = descriptor;
+            }
+        });
+
+        models.each(function(model){
+            if (ids[model.id] === undefined){
+                info.deleted[model.id] = model.id;
+            }
+        });
+
+        return info;
+    };
+    /**
+     * Lists all changed properties
+     * @param descriptor
+     * @param model
+     * @return {Object}
+     */
+    sclient.UpdateInfo.prototype.difference = function(descriptor, model) {
+        var diff = {};
+        var changed = false;
+        for (var propName in descriptor) {
+            if (descriptor.hasOwnProperty(propName) &&
+                model[propName] instanceof sclient.ObservableProperty){
+                if (model[propName].get() !== descriptor[propName]){
+                    diff[propName] = descriptor[propName];
+                    changed = true;
+                }
+            }
+        }
+        return changed ? diff : null;
+    };
+
+
+}());
+
+/**
+ * Created by Igor Zalutsky on 17.08.12 at 14:01
+ */
+
+(function () {
+    "use strict";
+    // publishing namespace
+    if (!window.sclient) {
+        window.sclient = {};
+    }
+    var sclient = window.sclient;
+
+    sclient.ShapeModel = function(id, properties){
+        this.id = this.newId(id);
+        this.x = this.newProp(0);
+        this.y = this.newProp(0);
+        this.size = this.newProp(100);
+        this.color = this.newProp("rgb(255, 0, 0)");
+        if (properties !== undefined) {
+            this.assign(properties);
+        }
+
+    };
+
+    // Extending BaseModel
+    sclient.ShapeModel.inheritFrom(sclient.BaseModel);
+
+}());
+
+/**
  * Created by Igor Zalutsky on 17.08.12 at 12:07
  */
 
@@ -404,9 +592,25 @@
     }
     var sclient = window.sclient;
 
+    sclient.userId = "Igor Zalutsky";
+
+    var models = new sclient.ObservableCollection();
+    models.add(new sclient.ShapeModel(8, {size:200, x:3}));
+    models.add(new sclient.ShapeModel(11));
+
     var con = new sclient.Connector("http://eris.generation-p.com/test/get-shapes.do", function(data) {
-        console.log(con.timingCache);
+        var info = new sclient.UpdateInfo(data, models);
+        console.log(info);
     }).start();
+
+    setTimeout(function(){
+        con.stop();
+    },2000);
+
+
+
+
+
 
 
 }());

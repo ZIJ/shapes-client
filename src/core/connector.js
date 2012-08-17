@@ -10,6 +10,12 @@
     }
     var sclient = window.sclient;
 
+    /**
+     * Regularly sends requests to given url, auto-optimizes to network perfomance
+     * @param url
+     * @param callback  will be called with response data as first param
+     * @constructor
+     */
     sclient.Connector = function(url, callback) {
         //TODO params validation in Connector
         this.url = url;
@@ -22,6 +28,10 @@
 
     };
 
+    /**
+     * Starts request loop
+     * @return {*}
+     */
     sclient.Connector.prototype.start = function(){
         if (!this.isStarted) {
             this.isStarted = true;
@@ -30,11 +40,18 @@
         return this;
     };
 
+    /**
+     * Stops request loop
+     * @return {*}
+     */
     sclient.Connector.prototype.stop = function(){
         this.isStarted = false;
         return this;
     };
 
+    /**
+     * Makes a request, then calculates delay until next step.
+     */
     sclient.Connector.prototype.runLoop = function(){
         var that = this;
         this.request();
@@ -51,6 +68,9 @@
         }
     };
 
+    /**
+     * Sends request
+     */
     sclient.Connector.prototype.request = function(){
         var that = this;
         var start = new Date();

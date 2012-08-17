@@ -10,9 +10,25 @@
     }
     var sclient = window.sclient;
 
+    sclient.userId = "Igor Zalutsky";
+
+    var models = new sclient.ObservableCollection();
+    models.add(new sclient.ShapeModel(8, {size:200, x:3}));
+    models.add(new sclient.ShapeModel(11));
+
     var con = new sclient.Connector("http://eris.generation-p.com/test/get-shapes.do", function(data) {
-        console.log(con.timingCache);
+        var info = new sclient.UpdateInfo(data, models);
+        console.log(info);
     }).start();
+
+    setTimeout(function(){
+        con.stop();
+    },2000);
+
+
+
+
+
 
 
 }());
