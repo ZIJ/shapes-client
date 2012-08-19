@@ -778,7 +778,6 @@
         } else {
             model = new sclient.ShapeModel(id, descriptor);
             this.shapeModels.add(model);
-            console.log("created model " + id);
         }
     };
 
@@ -863,7 +862,13 @@
         this.removeAllButton = $("#removeAllButton");
         this.removeAllButton.click(function(){
             if (confirm("This will delete all your lovely squares. Are you sure you won't regret?")){
-                appView.emit("removeAll");
+                // fixing server bug - remove-shapes.do removes all shapes
+                appView.shapeViews.each(function(shapeView){
+                    if (shapeView.model.userId.get() === sclient.userId){
+                        shapeView.isRemoved = true;
+                        appView.emit("remove", shapeView.model.id);
+                    }
+                });
             }
         });
 

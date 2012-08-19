@@ -55,7 +55,6 @@
         } else {
             model = new sclient.ShapeModel(id, descriptor);
             this.shapeModels.add(model);
-            console.log("created model " + id);
         }
     };
 
