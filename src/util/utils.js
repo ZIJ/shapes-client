@@ -55,7 +55,8 @@
         for (var i = 0; i < 3; i+=1){
             colorString += sclient.randomInt(0, 255) + ",";
         }
-        return colorString + ")";
+        //removing last comma
+        return colorString.substring(0, colorString.length - 2) + ")";
     };
 
 
