@@ -41,6 +41,14 @@
     sclient.pollUrl = sclient.baseUrl + sclient.getAction;
     sclient.poll = new sclient.Poll(sclient.pollUrl, sclient.update).start();
 
+    /*
+
+    setTimeout(function(){
+        sclient.poll.stop();
+    },10000);
+
+    */
+
     sclient.transmitter = new sclient.Transmitter(sclient.baseUrl, {
         save: sclient.saveAction,
         remove: sclient.removeAction,
