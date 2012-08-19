@@ -28,8 +28,9 @@
      * @return {*}
      */
     sclient.AppModel.prototype.byId = function(id){
+        var num = Number(id);
         return this.shapeModels.by(function(model){
-            return model.id === id;
+            return model.id === num;
         });
     };
 

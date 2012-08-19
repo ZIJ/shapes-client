@@ -15,7 +15,7 @@
      * @constructor
      */
     sclient.AppView = function(appModel){
-        var view = this;
+        var appView = this;
         this.model = appModel;
         this.listeners = {};
         this.isVisible = false;
@@ -24,11 +24,69 @@
 
         this.createButton = $("#createButton");
         this.createButton.click(function(){
-            view.emit("create");
+            appView.emit("create");
+        });
+
+        this.removeAllButton = $("#removeAllButton");
+        this.removeAllButton.click(function(){
+            if (confirm("This will delete all your lovely squares. Are you sure you won't regret?")){
+                appView.emit("removeAll");
+            }
+        });
+
+        this.trash = $("#trash");
+        this.trash.droppable();
+        this.trash.bind("drop", function(event, ui){
+            console.log("drop");
+            var id = Number(ui.draggable.attr("data-id"));
+            var view = appView.shapeViews.by(function(shapeView){
+                return shapeView.model.id === id;
+            });
+            view.isRemoved = true;
+            appView.emit("remove", id);
+        });
+
+
+        appModel.shapeModels.on("add", function(collection, shapeModel){
+            appView.createView(shapeModel);
+        });
+
+        appModel.shapeModels.on("remove", function(collection, shapeModel){
+            appView.removeView(shapeModel);
         });
     };
 
     // Extending BaseView
     sclient.AppView.inheritFrom(sclient.BaseView);
+
+    /**
+     * Creates a view of given ShapeModel and adds it to shapeViews
+     * @param shapeModel
+     */
+    sclient.AppView.prototype.createView = function(shapeModel){
+        var appView = this;
+        var shapeView = new sclient.ShapeView(shapeModel);
+        shapeView.on("change", function(){
+            var descriptor = shapeView.getDescriptor();
+            appView.emit("save", descriptor);
+        });
+        this.shapeViews.add(shapeView);
+    };
+
+    /**
+     * Removes view of given ShapeModel
+     * @param shapeModel
+     */
+    sclient.AppView.prototype.removeView = function(shapeModel){
+        var shapeView = this.shapeViews.by(function(shapeView){
+            return shapeView.model === shapeModel;
+        });
+        if (shapeView) {
+            shapeView.remove();
+            this.shapeViews.remove(shapeView);
+        } else {
+            sclient.report("No view for given model");
+        }
+    };
 
 }());

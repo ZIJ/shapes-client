@@ -50,13 +50,22 @@
      * Returns a random color string like this: "rgb(0,255,255)"
      * @return {String}
      */
-    sclient.randomColor = function(){
+    sclient.randomColorOld = function(){
         var colorString = "rgb(";
         for (var i = 0; i < 3; i+=1){
             colorString += sclient.randomInt(0, 255) + ",";
         }
         //removing last comma
         return colorString.substring(0, colorString.length - 2) + ")";
+    };
+
+    sclient.randomColor = function(){
+        var letters = '0123456789ABCDEF'.split('');
+        var color = '#';
+        for (var i = 0; i < 6; i+=1 ) {
+            color += letters[Math.round(Math.random() * 15)];
+        }
+        return color;
     };
 
 

@@ -50,13 +50,22 @@
      * Returns a random color string like this: "rgb(0,255,255)"
      * @return {String}
      */
-    sclient.randomColor = function(){
+    sclient.randomColorOld = function(){
         var colorString = "rgb(";
         for (var i = 0; i < 3; i+=1){
             colorString += sclient.randomInt(0, 255) + ",";
         }
         //removing last comma
         return colorString.substring(0, colorString.length - 2) + ")";
+    };
+
+    sclient.randomColor = function(){
+        var letters = '0123456789ABCDEF'.split('');
+        var color = '#';
+        for (var i = 0; i < 6; i+=1 ) {
+            color += letters[Math.round(Math.random() * 15)];
+        }
+        return color;
     };
 
 
@@ -742,8 +751,9 @@
      * @return {*}
      */
     sclient.AppModel.prototype.byId = function(id){
+        var num = Number(id);
         return this.shapeModels.by(function(model){
-            return model.id === id;
+            return model.id === num;
         });
     };
 
@@ -836,7 +846,7 @@
      * @constructor
      */
     sclient.AppView = function(appModel){
-        var view = this;
+        var appView = this;
         this.model = appModel;
         this.listeners = {};
         this.isVisible = false;
@@ -845,12 +855,70 @@
 
         this.createButton = $("#createButton");
         this.createButton.click(function(){
-            view.emit("create");
+            appView.emit("create");
+        });
+
+        this.removeAllButton = $("#removeAllButton");
+        this.removeAllButton.click(function(){
+            if (confirm("This will delete all your lovely squares. Are you sure you won't regret?")){
+                appView.emit("removeAll");
+            }
+        });
+
+        this.trash = $("#trash");
+        this.trash.droppable();
+        this.trash.bind("drop", function(event, ui){
+            console.log("drop");
+            var id = Number(ui.draggable.attr("data-id"));
+            var view = appView.shapeViews.by(function(shapeView){
+                return shapeView.model.id === id;
+            });
+            view.isRemoved = true;
+            appView.emit("remove", id);
+        });
+
+
+        appModel.shapeModels.on("add", function(collection, shapeModel){
+            appView.createView(shapeModel);
+        });
+
+        appModel.shapeModels.on("remove", function(collection, shapeModel){
+            appView.removeView(shapeModel);
         });
     };
 
     // Extending BaseView
     sclient.AppView.inheritFrom(sclient.BaseView);
+
+    /**
+     * Creates a view of given ShapeModel and adds it to shapeViews
+     * @param shapeModel
+     */
+    sclient.AppView.prototype.createView = function(shapeModel){
+        var appView = this;
+        var shapeView = new sclient.ShapeView(shapeModel);
+        shapeView.on("change", function(){
+            var descriptor = shapeView.getDescriptor();
+            appView.emit("save", descriptor);
+        });
+        this.shapeViews.add(shapeView);
+    };
+
+    /**
+     * Removes view of given ShapeModel
+     * @param shapeModel
+     */
+    sclient.AppView.prototype.removeView = function(shapeModel){
+        var shapeView = this.shapeViews.by(function(shapeView){
+            return shapeView.model === shapeModel;
+        });
+        if (shapeView) {
+            shapeView.remove();
+            this.shapeViews.remove(shapeView);
+        } else {
+            sclient.report("No view for given model");
+        }
+    };
 
 }());
 
@@ -876,32 +944,95 @@
         var view = this;
         var model = shapeModel;
         this.listeners = {};
-        this.isVisible = false;
+
         this.model = shapeModel;
-        this.parentNode = null;
+        this.model.x.notify(function(){
+            view.updateX();
+        });
+        this.model.y.notify(function(){
+            view.updateY();
+        });
+        this.model.color.notify(function(){
+            view.updateColor();
+        });
 
-        this.node = document.createElement("div");
-        this.node.innerHTML = "test text";
-        $(this.node).css("position", "absolute");
-        $(this.node).css("border", "1px solid #000000");
-        if (this.node.userId === sclient.userId){
-            $(this.node).draggable();
+        this.container = $("#shapes");
+        this.square = $(document.createElement("div"));
+        this.square.attr("data-id",this.model.id);
+        this.square.addClass("shape");
+        this.square.css("width", sclient.squareSize + "px");
+        this.square.css("height", sclient.squareSize + "px");
+        this.container.append(this.square);
+
+        this.isRemoved = false;
+        this.isDragging = false;
+        if (this.model.userId.get() === sclient.userId) {
+            this.square.draggable();
+            this.square.dblclick(function(){
+                view.square.css("background-color", sclient.randomColor());
+                view.emit("change");
+            });
         }
+        this.square.bind("dragstart", function(){
+            view.isDragging = true;
+        });
+        this.square.bind("dragstop", function(){
+            console.log("dragstop");
+            if (!view.isRemoved){
+                view.emit("change");
+                view.isDragging = false;
+            }
+        });
 
-
-        this.update();
+        this.updateX();
+        this.updateY();
+        this.updateColor();
     };
 
     // Extending BaseView
     sclient.ShapeView.inheritFrom(sclient.BaseView);
 
-    sclient.ShapeView.prototype.update = function(){
-        var wrapped = $(this.node);
-        wrapped.css("background-color", this.model.color.get());
-        wrapped.css("left", this.model.x.get());
-        wrapped.css("top", this.model.y.get());
-        wrapped.css("width", this.model.size.get());
-        wrapped.css("height", this.model.size.get());
+    /**
+     * Returns a descriptor of Shape from actual markup
+     * @return {Object}
+     */
+    sclient.ShapeView.prototype.getDescriptor = function(){
+        var position = this.square.position();
+        return {
+            id: this.square.attr("data-id"),
+            userId: sclient.userId,
+            x: position.left,
+            y: position.top,
+            size: this.square.width(),
+            color: this.square.css("background-color")
+        };
+    };
+
+    sclient.ShapeView.prototype.remove = function(){
+        this.square.remove();
+    };
+
+    sclient.ShapeView.prototype.updateX = function(){
+        if (!this.isDragging){
+            this.square.css("left", this.model.x.get());
+        }
+    };
+
+    sclient.ShapeView.prototype.updateY = function(){
+        if (!this.isDragging){
+            this.square.css("top", this.model.y.get());
+        }
+    };
+
+    sclient.ShapeView.prototype.updatePosition = function(){
+        this.square.position({
+            of: this.container,
+            offset: this.model.x.get() + " " + this.model.y.get()
+        });
+    };
+
+    sclient.ShapeView.prototype.updateColor = function(){
+        this.square.css("background-color", this.model.color.get());
     };
 
 
@@ -925,12 +1056,13 @@
     sclient.getAction = "get-shapes.do";
     sclient.saveAction = "save-shape.do";
     sclient.removeAction = "remove-shape.do";
+    sclient.removeAllAction = "remove-shapes.do";
     sclient.squareSize = 100;
 
     sclient.appModel = new sclient.AppModel();
 
     sclient.update = function(data){
-        console.log(data);
+        //console.log(data);
         var ids = {};
         sclient.appModel.shapeModels.each(function(model){
             ids[model.id] = model;
@@ -949,14 +1081,10 @@
     sclient.pollUrl = sclient.baseUrl + sclient.getAction;
     sclient.poll = new sclient.Poll(sclient.pollUrl, sclient.update).start();
 
-    //TODO remove polling time limit
-    setTimeout(function(){
-        sclient.poll.stop();
-    }, 10000);
-
     sclient.transmitter = new sclient.Transmitter(sclient.baseUrl, {
         save: sclient.saveAction,
-        remove: sclient.removeAction
+        remove: sclient.removeAction,
+        removeAll: sclient.removeAllAction
     });
 
     $(document).ready(function(){
@@ -969,6 +1097,23 @@
                 x: sclient.randomInt(100, 800),
                 y: sclient.randomInt(100, 600)
             });
+        });
+
+        sclient.appView.on("remove", function(shapeView, id){
+            sclient.transmitter.remove({
+                userId: sclient.userId,
+                id: id
+            });
+        });
+
+        sclient.appView.on("removeAll", function(){
+            sclient.transmitter.removeAll({
+                userId: sclient.userId
+            });
+        });
+
+        sclient.appView.on("save", function(shapeView, descriptor){
+           sclient.transmitter.save(descriptor);
         });
     });
 

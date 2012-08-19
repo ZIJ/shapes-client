@@ -1,5 +1,28 @@
+body {
+    font-family: verdana, arial, sans-serif;
+}
+
+button {
+    font-size: 16px;
+}
+
 #controls {
+    float: right;
+}
+
+#trash {
+    margin-top: 20px;
+    padding: 10px;
+    border: 1px solid red;
+    color: red;
+    font-size: 48px;
+}
+
+#trash > div {
+    font-size: 18px;
+}
+
+.shape {
     position: absolute;
-    top: 600px;
-    left: 300px;
+    border: 1px solid;
 }

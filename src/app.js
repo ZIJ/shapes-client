@@ -16,12 +16,13 @@
     sclient.getAction = "get-shapes.do";
     sclient.saveAction = "save-shape.do";
     sclient.removeAction = "remove-shape.do";
+    sclient.removeAllAction = "remove-shapes.do";
     sclient.squareSize = 100;
 
     sclient.appModel = new sclient.AppModel();
 
     sclient.update = function(data){
-        console.log(data);
+        //console.log(data);
         var ids = {};
         sclient.appModel.shapeModels.each(function(model){
             ids[model.id] = model;
@@ -40,14 +41,10 @@
     sclient.pollUrl = sclient.baseUrl + sclient.getAction;
     sclient.poll = new sclient.Poll(sclient.pollUrl, sclient.update).start();
 
-    //TODO remove polling time limit
-    setTimeout(function(){
-        sclient.poll.stop();
-    }, 10000);
-
     sclient.transmitter = new sclient.Transmitter(sclient.baseUrl, {
         save: sclient.saveAction,
-        remove: sclient.removeAction
+        remove: sclient.removeAction,
+        removeAll: sclient.removeAllAction
     });
 
     $(document).ready(function(){
@@ -60,6 +57,23 @@
                 x: sclient.randomInt(100, 800),
                 y: sclient.randomInt(100, 600)
             });
+        });
+
+        sclient.appView.on("remove", function(shapeView, id){
+            sclient.transmitter.remove({
+                userId: sclient.userId,
+                id: id
+            });
+        });
+
+        sclient.appView.on("removeAll", function(){
+            sclient.transmitter.removeAll({
+                userId: sclient.userId
+            });
+        });
+
+        sclient.appView.on("save", function(shapeView, descriptor){
+           sclient.transmitter.save(descriptor);
         });
     });
 
