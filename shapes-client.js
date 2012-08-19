@@ -851,6 +851,8 @@
         this.listeners = {};
         this.isVisible = false;
 
+        sclient.userId = prompt("Enter your username, please", sclient.userId);
+
         this.shapeViews = new sclient.ObservableCollection();
 
         this.createButton = $("#createButton");
