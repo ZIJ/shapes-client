@@ -53,20 +53,20 @@
     };
 
     /**
-     * Adds an item. Causes "change" event.
+     * Adds an item. Causes "add" event.
      * @param item
      * @return {*}
      */
     sclient.ObservableCollection.prototype.add = function(item){
         if (!this.has(item)) {
             this.items.push(item);
-            this.emit("change");
+            this.emit("add", item);
         }
         return this;
     };
 
     /**
-     * Removes an item. Causes "change" event
+     * Removes an item. Causes "remove" event
      * @param item
      * @return {*}
      */
@@ -74,7 +74,7 @@
         var index = this.items.indexOf(item);
         if (index >= 0) {
             this.items.splice(index, 1);
-            this.emit("change");
+            this.emit("remove", item);
         }
         return this;
     };

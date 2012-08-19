@@ -18,6 +18,7 @@
     sclient.BaseModel = function(id, properties) {
         //this.id = 0;
     };
+
     /**
      * Checks ObservableProperties presence and sets their values
      * @param properties
@@ -31,7 +32,6 @@
                 if (this[name] instanceof sclient.ObservableProperty) {
                     this[name].set(properties[name]);
                 }
-
             }
         }
     };

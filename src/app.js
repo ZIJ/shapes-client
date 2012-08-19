@@ -11,51 +11,57 @@
     var sclient = window.sclient;
 
     sclient.userId = "Igor Zalutsky";
-    sclient.url = "http://eris.generation-p.com/test/get-shapes.do";
 
-    sclient.models = new sclient.ObservableCollection();
+    sclient.baseUrl = "http://eris.generation-p.com/test/";
+    sclient.getAction = "get-shapes.do";
+    sclient.saveAction = "save-shape.do";
+    sclient.removeAction = "remove-shape.do";
+    sclient.squareSize = 100;
+
+    sclient.appModel = new sclient.AppModel();
 
     sclient.update = function(data){
-
-        var info = new sclient.UpdateInfo(data, sclient.models);
-        console.log(info);
-
-        info.created.forEach(function(descriptor){
-            var id = descriptor.id;
-            var model = new sclient.ShapeModel(id, descriptor);
-            sclient.models.add(model);
+        console.log(data);
+        var ids = {};
+        sclient.appModel.shapeModels.each(function(model){
+            ids[model.id] = model;
         });
-
-        info.deleted.forEach(function(id) {
-            var predicate = sclient.byId(id);
-            var model = sclient.models.by(predicate);
-            if (model) {
-                sclient.models.remove(model);
+        data.forEach(function(descriptor){
+            sclient.appModel.save(descriptor);
+            delete ids[descriptor.id];
+        });
+        for (var id in ids){
+            if (ids.hasOwnProperty(id)){
+                sclient.appModel.remove(id);
             }
-        });
-
-        info.changed.forEach(function(descriptor){
-            var id = descriptor.id;
-            var predicate = sclient.byId(id);
-            var model = sclient.models.by(predicate);
-            model.assign(descriptor);
-        });
-
+        }
     };
 
-    sclient.models.add(new sclient.ShapeModel(8, {size:200, x:3}));
-    sclient.models.add(new sclient.ShapeModel(11));
+    sclient.pollUrl = sclient.baseUrl + sclient.getAction;
+    sclient.poll = new sclient.Poll(sclient.pollUrl, sclient.update).start();
 
-    var con = new sclient.Connector(sclient.url, sclient.update).start();
-
+    //TODO remove polling time limit
     setTimeout(function(){
-        con.stop();
-    },2000);
+        sclient.poll.stop();
+    }, 10000);
 
+    sclient.transmitter = new sclient.Transmitter(sclient.baseUrl, {
+        save: sclient.saveAction,
+        remove: sclient.removeAction
+    });
 
-
-
-
+    $(document).ready(function(){
+        sclient.appView = new sclient.AppView(sclient.appModel);
+        sclient.appView.on("create", function(){
+            sclient.transmitter.save({
+                userId: sclient.userId,
+                color: sclient.randomColor(),
+                size: sclient.squareSize,
+                x: sclient.randomInt(100, 800),
+                y: sclient.randomInt(100, 600)
+            });
+        });
+    });
 
 
 }());

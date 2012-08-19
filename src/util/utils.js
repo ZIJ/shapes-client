@@ -36,6 +36,27 @@
             return item.id === id;
         };
     };
+    /**
+     * Returns uniform random integer between min and max
+     * @param min
+     * @param max
+     * @return {Number}
+     */
+    sclient.randomInt = function(min, max){
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    };
+
+    /**
+     * Returns a random color string like this: "rgb(0,255,255)"
+     * @return {String}
+     */
+    sclient.randomColor = function(){
+        var colorString = "rgb(";
+        for (var i = 0; i < 3; i+=1){
+            colorString += sclient.randomInt(0, 255) + ",";
+        }
+        return colorString + ")";
+    };
 
 
 }());

@@ -16,11 +16,11 @@
      * @param callback  will be called with response data as first param
      * @constructor
      */
-    sclient.Connector = function(url, callback) {
-        //TODO params validation in Connector
+    sclient.Poll = function(url, callback) {
+        //TODO params validation in Poll
         this.url = url;
         this.callback = callback;
-        this.minTiming = 10;
+        this.minTiming = 30;
         this.maxTiming = 1000;
         this.cacheSize = 10;
         this.timingCache = [];
@@ -32,7 +32,7 @@
      * Starts request loop
      * @return {*}
      */
-    sclient.Connector.prototype.start = function(){
+    sclient.Poll.prototype.start = function(){
         if (!this.isStarted) {
             this.isStarted = true;
             this.runLoop();
@@ -44,7 +44,7 @@
      * Stops request loop
      * @return {*}
      */
-    sclient.Connector.prototype.stop = function(){
+    sclient.Poll.prototype.stop = function(){
         this.isStarted = false;
         return this;
     };
@@ -52,7 +52,7 @@
     /**
      * Makes a request, then calculates delay until next step.
      */
-    sclient.Connector.prototype.runLoop = function(){
+    sclient.Poll.prototype.runLoop = function(){
         var that = this;
         this.request();
         var timingSum = 0;
@@ -71,7 +71,7 @@
     /**
      * Sends request
      */
-    sclient.Connector.prototype.request = function(){
+    sclient.Poll.prototype.request = function(){
         var that = this;
         var start = new Date();
         $.ajax(this.url, {
@@ -86,7 +86,7 @@
                 }
                 that.callback(data);
             }).fail(function(err){
-                throw new Error("Request failed");
+                sclient.report("Request failed");
             });
     };
 

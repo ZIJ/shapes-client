@@ -36,6 +36,27 @@
             return item.id === id;
         };
     };
+    /**
+     * Returns uniform random integer between min and max
+     * @param min
+     * @param max
+     * @return {Number}
+     */
+    sclient.randomInt = function(min, max){
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    };
+
+    /**
+     * Returns a random color string like this: "rgb(0,255,255)"
+     * @return {String}
+     */
+    sclient.randomColor = function(){
+        var colorString = "rgb(";
+        for (var i = 0; i < 3; i+=1){
+            colorString += sclient.randomInt(0, 255) + ",";
+        }
+        return colorString + ")";
+    };
 
 
 }());
@@ -160,20 +181,20 @@
     };
 
     /**
-     * Adds an item. Causes "change" event.
+     * Adds an item. Causes "add" event.
      * @param item
      * @return {*}
      */
     sclient.ObservableCollection.prototype.add = function(item){
         if (!this.has(item)) {
             this.items.push(item);
-            this.emit("change");
+            this.emit("add", item);
         }
         return this;
     };
 
     /**
-     * Removes an item. Causes "change" event
+     * Removes an item. Causes "remove" event
      * @param item
      * @return {*}
      */
@@ -181,7 +202,7 @@
         var index = this.items.indexOf(item);
         if (index >= 0) {
             this.items.splice(index, 1);
-            this.emit("change");
+            this.emit("remove", item);
         }
         return this;
     };
@@ -352,6 +373,7 @@
     sclient.BaseModel = function(id, properties) {
         //this.id = 0;
     };
+
     /**
      * Checks ObservableProperties presence and sets their values
      * @param properties
@@ -365,7 +387,6 @@
                 if (this[name] instanceof sclient.ObservableProperty) {
                     this[name].set(properties[name]);
                 }
-
             }
         }
     };
@@ -396,6 +417,71 @@
 }());
 
 /**
+ * Created by Igor Zalutsky on 17.08.12 at 15:52
+ */
+
+(function () {
+    "use strict";
+    // publishing namespace
+    if (!window.sclient) {
+        window.sclient = {};
+    }
+    var sclient = window.sclient;
+
+    /**
+     * Base class for all Views, extends EventEmitter. Provides common rendering logic.
+     * @constructor
+     */
+    sclient.BaseView = function() {
+        this.listeners = {};
+        this.isVisible = false;
+    };
+
+    // BaseView extends EventEmitter
+    sclient.BaseView.inheritFrom(sclient.EventEmitter);
+
+
+    /**
+     * Renders a view to specified DOM node
+     * @param element
+     * @return {*}
+     */
+    sclient.BaseView.prototype.renderTo = function(element) {
+        //TODO param validation in renderTo()
+        this.parentNode = element;
+        return this.show();
+    };
+    /**
+     * Appends view to its parent node
+     * @return {*}
+     */
+    sclient.BaseView.prototype.show = function() {
+        if (!this.isVisible){
+            if (!this.parentNode) {
+                sclient.report("Parent node unknown. Call renderTo() first.");
+            }
+            this.parentNode.appendChild(this.node);
+            this.isVisible = true;
+        }
+        return this;
+    };
+    /**
+     * Removes view from DOM
+     */
+    sclient.BaseView.prototype.hide = function() {
+        if (this.isVisible && this.parentNode) {
+            //TODO Find out why removeChild causes DOM Exception 8
+            try {
+                this.parentNode.removeChild(this.node);
+            } catch (e) {}
+            this.isVisible = false;
+        }
+    };
+
+
+}());
+
+/**
  * Created by Igor Zalutsky on 17.08.12 at 12:32
  */
 
@@ -413,11 +499,11 @@
      * @param callback  will be called with response data as first param
      * @constructor
      */
-    sclient.Connector = function(url, callback) {
-        //TODO params validation in Connector
+    sclient.Poll = function(url, callback) {
+        //TODO params validation in Poll
         this.url = url;
         this.callback = callback;
-        this.minTiming = 10;
+        this.minTiming = 30;
         this.maxTiming = 1000;
         this.cacheSize = 10;
         this.timingCache = [];
@@ -429,7 +515,7 @@
      * Starts request loop
      * @return {*}
      */
-    sclient.Connector.prototype.start = function(){
+    sclient.Poll.prototype.start = function(){
         if (!this.isStarted) {
             this.isStarted = true;
             this.runLoop();
@@ -441,7 +527,7 @@
      * Stops request loop
      * @return {*}
      */
-    sclient.Connector.prototype.stop = function(){
+    sclient.Poll.prototype.stop = function(){
         this.isStarted = false;
         return this;
     };
@@ -449,7 +535,7 @@
     /**
      * Makes a request, then calculates delay until next step.
      */
-    sclient.Connector.prototype.runLoop = function(){
+    sclient.Poll.prototype.runLoop = function(){
         var that = this;
         this.request();
         var timingSum = 0;
@@ -468,7 +554,7 @@
     /**
      * Sends request
      */
-    sclient.Connector.prototype.request = function(){
+    sclient.Poll.prototype.request = function(){
         var that = this;
         var start = new Date();
         $.ajax(this.url, {
@@ -483,9 +569,75 @@
                 }
                 that.callback(data);
             }).fail(function(err){
-                throw new Error("Request failed");
+                sclient.report("Request failed");
             });
     };
+
+}());
+
+/**
+ * Created by Igor Zalutsky on 19.08.12 at 15:12
+ */
+
+(function () {
+    "use strict";
+    // publishing namespace
+    if (!window.sclient) {
+        window.sclient = {};
+    }
+    var sclient = window.sclient;
+
+    /**
+     * Can send jsonp requests to urls constructed from baseUrl and action name. Provides corresponding methods.
+     * @param baseUrl
+     * @param actions   object with keys as action names and values as parts to be added to baseUrl
+     * @constructor
+     */
+    sclient.Transmitter = function(baseUrl, actions) {
+        var transmitter = this;
+        this.baseUrl = baseUrl;
+        this.actions = actions || {};
+        for (var actionName in actions){
+            if (actions.hasOwnProperty(actionName)){
+                this.addMethod(actionName);
+            }
+        }
+    };
+    /**
+     * Adds method with given name that invokes send (name, data)
+     * @param name
+     * @return {*}
+     */
+    sclient.Transmitter.prototype.addMethod = function(name){
+        var transmitter = this;
+        transmitter[name] = function(data){
+            return transmitter.send(name, data);
+        };
+        return this;
+    };
+
+    /**
+     * Sends jsonp request to specified action
+     * @param actionName
+     * @param data
+     * @return {*}
+     */
+    sclient.Transmitter.prototype.send = function(actionName, data) {
+        if (typeof this.actions[actionName] === "string") {
+            var fullUrl = this.baseUrl + this.actions[actionName];
+            return $.ajax({
+                url: fullUrl,
+                data: data,
+                crossDomain: true,
+                dataType: "jsonp"
+            }).fail(function(){
+                sclient.report("Failed request to " + fullUrl);
+            });
+        } else {
+            sclient.report("Can't find action " + actionName);
+        }
+    };
+
 
 }());
 
@@ -560,6 +712,83 @@
 }());
 
 /**
+ * Created by Igor Zalutsky on 19.08.12 at 18:29
+ */
+
+(function () {
+    "use strict";
+    // publishing namespace
+    if (!window.sclient) {
+        window.sclient = {};
+    }
+    var sclient = window.sclient;
+    /**
+     * Model of entire application. Contains models of Shapes and provides convenience methods.
+     * @constructor
+     */
+    sclient.AppModel = function(){
+
+        this.shapeModels = new sclient.ObservableCollection();
+
+    };
+
+    // Extending BaseModel
+    sclient.AppModel.inheritFrom(sclient.BaseModel);
+
+    /**
+     * Find a model with given id
+     * @param id
+     * @return {*}
+     */
+    sclient.AppModel.prototype.byId = function(id){
+        return this.shapeModels.by(function(model){
+            return model.id === id;
+        });
+    };
+
+    /**
+     * Check if model with given id is present in shapeModels
+     * @param id
+     * @return {Boolean}
+     */
+    sclient.AppModel.prototype.hasId = function(id){
+        return this.byId(id) ? true : false;
+    };
+
+    /**
+     * Updates an existing ShapeModel or creates a new one
+     * @param descriptor Object listing properties of new ShapeModel. ID is required.
+     */
+    sclient.AppModel.prototype.save = function(descriptor){
+        var id = descriptor.id;
+        var model = this.byId(id);
+        if (model){
+            model.assign(descriptor);
+        } else {
+            model = new sclient.ShapeModel(id, descriptor);
+            this.shapeModels.add(model);
+            console.log("created model " + id);
+        }
+    };
+
+    /**
+     * Remove model from shapeModels
+     * @param id
+     */
+    sclient.AppModel.prototype.remove = function(id){
+        var model = this.byId(id);
+        if (model){
+            this.shapeModels.remove(model);
+            console.log("removed model " + id);
+        } else {
+            sclient.report("No model with id " + id);
+        }
+    };
+
+
+}());
+
+/**
  * Created by Igor Zalutsky on 17.08.12 at 14:01
  */
 
@@ -590,6 +819,94 @@
 }());
 
 /**
+ * Created by Igor Zalutsky on 19.08.12 at 17:19
+ */
+
+(function () {
+    "use strict";
+    // publishing namespace
+    if (!window.sclient) {
+        window.sclient = {};
+    }
+    var sclient = window.sclient;
+
+    /**
+     * View of etire application
+     * @constructor
+     */
+    sclient.AppView = function(appModel){
+        var view = this;
+        this.model = appModel;
+        this.listeners = {};
+        this.isVisible = false;
+
+        this.shapeViews = new sclient.ObservableCollection();
+
+        this.createButton = $("#createButton");
+        this.createButton.click(function(){
+            view.emit("create");
+        });
+    };
+
+    // Extending BaseView
+    sclient.AppView.inheritFrom(sclient.BaseView);
+
+}());
+
+/**
+ * Created by Igor Zalutsky on 17.08.12 at 15:54
+ */
+
+(function () {
+    "use strict";
+    // publishing namespace
+    if (!window.sclient) {
+        window.sclient = {};
+    }
+    var sclient = window.sclient;
+
+    /**
+     * View of single Shape
+     * @param shapeModel
+     * @constructor
+     */
+    sclient.ShapeView = function(shapeModel){
+        //TODO Param validation in ShapeView
+        var view = this;
+        var model = shapeModel;
+        this.listeners = {};
+        this.isVisible = false;
+        this.model = shapeModel;
+        this.parentNode = null;
+
+        this.node = document.createElement("div");
+        this.node.innerHTML = "test text";
+        $(this.node).css("position", "absolute");
+        $(this.node).css("border", "1px solid #000000");
+        if (this.node.userId === sclient.userId){
+            $(this.node).draggable();
+        }
+
+
+        this.update();
+    };
+
+    // Extending BaseView
+    sclient.ShapeView.inheritFrom(sclient.BaseView);
+
+    sclient.ShapeView.prototype.update = function(){
+        var wrapped = $(this.node);
+        wrapped.css("background-color", this.model.color.get());
+        wrapped.css("left", this.model.x.get());
+        wrapped.css("top", this.model.y.get());
+        wrapped.css("width", this.model.size.get());
+        wrapped.css("height", this.model.size.get());
+    };
+
+
+}());
+
+/**
  * Created by Igor Zalutsky on 17.08.12 at 12:07
  */
 
@@ -602,50 +919,57 @@
     var sclient = window.sclient;
 
     sclient.userId = "Igor Zalutsky";
-    sclient.url = "http://eris.generation-p.com/test/get-shapes.do";
 
-    sclient.models = new sclient.ObservableCollection();
+    sclient.baseUrl = "http://eris.generation-p.com/test/";
+    sclient.getAction = "get-shapes.do";
+    sclient.saveAction = "save-shape.do";
+    sclient.removeAction = "remove-shape.do";
+    sclient.squareSize = 100;
+
+    sclient.appModel = new sclient.AppModel();
 
     sclient.update = function(data){
-
-        var info = new sclient.UpdateInfo(data, sclient.models);
-        console.log(info);
-
-        info.created.forEach(function(descriptor){
-            var id = descriptor.id;
-            var model = new sclient.ShapeModel(id, descriptor);
-            sclient.models.add(model);
+        console.log(data);
+        var ids = {};
+        sclient.appModel.shapeModels.each(function(model){
+            ids[model.id] = model;
         });
-
-        info.deleted.forEach(function(id) {
-            var predicate = sclient.byId(id);
-            var model = sclient.models.by(predicate);
-            if (model) {
-                sclient.models.remove(model);
+        data.forEach(function(descriptor){
+            sclient.appModel.save(descriptor);
+            delete ids[descriptor.id];
+        });
+        for (var id in ids){
+            if (ids.hasOwnProperty(id)){
+                sclient.appModel.remove(id);
             }
-        });
-
-        info.changed.forEach(function(descriptor){
-            var id = descriptor.id;
-            var predicate = sclient.byId(id);
-            var model = sclient.models.by(predicate);
-            model.assign(descriptor);
-        });
+        }
     };
 
-    sclient.models.add(new sclient.ShapeModel(8, {size:200, x:3}));
-    sclient.models.add(new sclient.ShapeModel(11));
+    sclient.pollUrl = sclient.baseUrl + sclient.getAction;
+    sclient.poll = new sclient.Poll(sclient.pollUrl, sclient.update).start();
 
-    var con = new sclient.Connector(sclient.url, sclient.update).start();
-
+    //TODO remove polling time limit
     setTimeout(function(){
-        con.stop();
-    },2000);
+        sclient.poll.stop();
+    }, 10000);
 
+    sclient.transmitter = new sclient.Transmitter(sclient.baseUrl, {
+        save: sclient.saveAction,
+        remove: sclient.removeAction
+    });
 
-
-
-
+    $(document).ready(function(){
+        sclient.appView = new sclient.AppView(sclient.appModel);
+        sclient.appView.on("create", function(){
+            sclient.transmitter.save({
+                userId: sclient.userId,
+                color: sclient.randomColor(),
+                size: sclient.squareSize,
+                x: sclient.randomInt(100, 800),
+                y: sclient.randomInt(100, 600)
+            });
+        });
+    });
 
 
 }());
